@@ -223,7 +223,7 @@ cat <<EOF > site.yml
   roles:
     - haproxy
 EOF
-
+echo "sed -i '1iPermitRootLogin yes' /etc/ssh/sshd_config && systemctl restart ssh"
 echo "Setup selesai! Jalankan playbook dengan:"
 echo "cd ~/ansible-project"
 echo "ansible-playbook site.yml --ask-vault-pass"
