@@ -24,9 +24,9 @@ all:
     webservers:
       hosts:
         lin1.srv:
-          192.168.18.134
+          ansible_host: 192.168.18.134
         lin2.srv:
-          192.168.18.136
+          ansible_host: 192.168.18.136
     haproxy:
       hosts:
         lin1.srv:
