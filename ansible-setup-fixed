@@ -92,6 +92,7 @@ ansible_user: Administrator # Ganti dengan user Administrator Windows Anda
 ansible_password: $DEFAULT_PASSWORD
 ansible_winrm_transport: basic # Menggunakan Basic Auth (tidak aman untuk produksi)
 ansible_winrm_server_cert_validation: ignore # Mengabaikan validasi sertifikat (tidak aman)
+ansible_port: 5985
 EOF
 
 # Buat secrets dan enkripsi (untuk Linux become password)
@@ -267,7 +268,7 @@ cat <<EOF > roles/webserver_windows/tasks/main.yml
     state: present
 
 - name: Ensure Default Web Site is started
-  ansible.windows.win_iis_website:
+  win_iis_website:
     name: Default Web Site
     state: started
 
@@ -361,6 +362,8 @@ cat <<EOF > site.yml
 - name: Setup Windows Server
   hosts: windows_servers # Grup ini sekarang hanya berisi win.srv
   # become: true # Become tidak umum digunakan seperti sudo di Windows dengan WinRM Basic
+  collections:
+    - ansible.windows
   vars_files:
     # - secrets/vault_windows.yml # Gunakan jika memerlukan become_pass untuk Windows
   roles:
