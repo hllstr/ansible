@@ -95,6 +95,7 @@ ansible_password: $DEFAULT_PASSWORD
 ansible_winrm_transport: basic # Menggunakan Basic Auth (tidak aman untuk produksi)
 ansible_winrm_server_cert_validation: ignore # Mengabaikan validasi sertifikat (tidak aman)
 ansible_port: 5985
+ansible_become: no
 EOF
 
 # Buat secrets dan enkripsi (untuk Linux become password)
@@ -239,10 +240,26 @@ defaults
     timeout client  50000
     timeout server  50000
 
+# Frontend pada port 8080, termasuk stat page
 frontend http_front
     bind *:8080
+
+    acl path_stats path_beg /stats
+    use_backend stats_backend if path_stats
+
     default_backend http_back
 
+# Backend untuk stat page
+backend stats_backend
+    stats enable
+    stats uri /stats
+    stats refresh 10s
+    stats auth admin:admin123
+    stats hide-version
+    stats show-node
+    stats realm Haproxy\ Statistics
+
+# Backend untuk webserver
 backend http_back
     balance roundrobin
 {% for host in groups['webservers_linux'] %}
@@ -251,6 +268,7 @@ backend http_back
 {% for host in groups['webservers_windows'] %}
     server {{ host }} {{ hostvars[host].ansible_host }}:80 check
 {% endfor %}
+
 EOF
 
 # ========== ROLE: Webserver Windows (IIS) ==========
