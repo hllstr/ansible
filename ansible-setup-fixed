@@ -3,13 +3,13 @@
 set -e
 
 # Password default untuk semua host
-DEFAULT_PASSWORD="777112"
+DEFAULT_PASSWORD="Skills39"
 
 # Install Ansible dan sshpass (untuk Linux)
 # Untuk koneksi ke Windows, Ansible menggunakan WinRM, tidak memerlukan sshpass
 echo "Memperbarui daftar paket dan menginstal Ansible..."
-apt update && apt install -y ansible
-ansible-galaxy collection install ansible.windows sshpass -y
+apt update && apt install ansible sshpass -y
+ansible-galaxy collection install ansible.windows
 
 # Buat direktori struktur project
 echo "Membuat struktur direktori proyek Ansible..."
@@ -67,8 +67,9 @@ all:
 
   vars:
     # Variabel default untuk semua host (bisa ditimpa di group_vars)
-    ansible_user: root # Default user untuk Linux
+    ansible_user: user # Default user untuk Linux
     ansible_password: $DEFAULT_PASSWORD # Default password untuk Linux
+    ansible_become: yes
     ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
 EOF
 
@@ -79,8 +80,9 @@ cat <<EOF > group_vars/all.yml
 ---
 # Variabel umum untuk semua host
 # Ini akan ditimpa oleh variabel spesifik grup jika ada
-ansible_user: root # Default user untuk Linux
+ansible_user: user # Default user untuk Linux
 ansible_password: $DEFAULT_PASSWORD # Default password untuk Linux
+
 EOF
 
 echo "Membuat file group_vars/windows_servers.yml..."
@@ -102,12 +104,6 @@ echo "ansible_become_pass: $DEFAULT_PASSWORD" > secrets/vault_linux.yml
 echo $DEFAULT_PASSWORD > vault_pass.txt
 ansible-vault encrypt secrets/vault_linux.yml --vault-password-file=vault_pass.txt
 rm vault_pass.txt
-
-# Buat secrets dan enkripsi (untuk Windows become password, jika diperlukan)
-# Windows biasanya menggunakan user Administrator, become_pass mungkin tidak perlu
-# Namun, jika Anda menggunakan UAC atau user lain, ini bisa relevan
-# echo "ansible_become_pass: $DEFAULT_PASSWORD" > secrets/vault_windows.yml
-# ansible-vault encrypt secrets/vault_windows.yml --vault-password-file=vault_pass.txt
 
 # ========== ROLE: Webserver Linux (Apache2) ==========
 echo "Membuat role webserver Linux (Apache2)..."
@@ -308,16 +304,15 @@ cat <<EOF > roles/dns_windows/tasks/main.yml
 - name: Create primary forward lookup zone 'srv'
   ansible.windows.win_dns_zone:
     name: srv
-    type: Primary
-    action: create
-    replicate_to: "AllDnsServersInDomain" # Sesuaikan jika tidak dalam domain
+    type: primary
+    state: present
 
 - name: Add A record for lin1.srv
   ansible.windows.win_dns_record:
     zone: srv
     name: lin1
     type: A
-    value: "{{ hostvars['lin1.srv'].ansible_host }}" # Menggunakan ansible_host dari inventory
+    value: "{{ hostvars['lin1.srv'].ansible_host }}"
     state: present
 
 - name: Add A record for lin2.srv
@@ -341,7 +336,7 @@ cat <<EOF > roles/dns_windows/tasks/main.yml
     zone: srv
     name: ns
     type: A
-    value: "{{ hostvars['win.srv'].ansible_host }}" # Menggunakan win.srv sebagai NS
+    value: "{{ hostvars['win.srv'].ansible_host }}"
     state: present
 EOF
 
@@ -379,11 +374,6 @@ echo "Anda bisa menjalankan perintah berikut di PowerShell sebagai Administrator
 echo "winrm quickconfig -q"
 echo "winrm set winrm/config/service/auth '@{Basic=\"true\"}'"
 echo "winrm set winrm/config/service '@{AllowUnencrypted=\"true\"}'"
-echo "Set-NetFirewallRule -DisplayName \"Windows Remote Management (HTTP-In)\" -Enabled true"
-echo ""
-echo "Untuk server Linux target (lin1.srv, lin2.srv), pastikan SSH diizinkan dan login root dengan password diaktifkan (tidak disarankan untuk produksi):"
-echo "sed -i 's/^#?PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config"
-echo "systemctl restart sshd"
 echo ""
 echo "Jalankan playbook dari direktori ~/ansible-project dengan:"
 echo "cd ~/ansible-project"
